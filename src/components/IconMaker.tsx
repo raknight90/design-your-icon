@@ -7,7 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ColorPicker } from "@/components/ColorPicker";
 import { SizeSelector } from "@/components/SizeSelector";
 import { IconPreview } from "@/components/IconPreview";
-import { Download, Save, Sparkles, Loader2 } from "lucide-react";
+import { AIIconGenerator } from "@/components/AIIconGenerator";
+import { PromptSuggestions } from "@/components/PromptSuggestions";
+import { Download, Save, Sparkles, Loader2, HelpCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { IconData } from "@/pages/Index";
 
@@ -24,6 +27,7 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
   const [size, setSize] = useState(256);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Load initial icon data
@@ -46,45 +50,285 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
 
     setIsGenerating(true);
     try {
-      // For demo purposes, we'll generate a colored square as placeholder
-      // In a real app, you'd integrate with an AI image generation service
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
-      const ctx = canvas.getContext('2d');
+      toast.info("Generating icon with AI...");
       
-      if (ctx) {
-        // Create a simple icon based on description
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, 512, 512);
-        
-        // Add some basic shape based on description keywords
-        ctx.fillStyle = foregroundColor;
-        if (description.toLowerCase().includes('circle')) {
-          ctx.beginPath();
-          ctx.arc(256, 256, 200, 0, 2 * Math.PI);
-          ctx.fill();
-        } else if (description.toLowerCase().includes('star')) {
-          drawStar(ctx, 256, 256, 5, 180, 90);
-        } else if (description.toLowerCase().includes('heart')) {
-          drawHeart(ctx, 256, 256, 180);
-        } else {
-          // Default rectangle
-          ctx.fillRect(100, 100, 312, 312);
-          ctx.fillStyle = backgroundColor;
-          ctx.fillRect(150, 150, 212, 212);
-        }
-        
-        const dataUrl = canvas.toDataURL('image/png');
-        setGeneratedImageUrl(dataUrl);
-        toast.success("Icon generated successfully!");
+      // Try AI generation first
+      const aiResult = await AIIconGenerator.generateIcon({
+        description,
+        backgroundColor,
+        foregroundColor,
+        size
+      });
+      
+      if (aiResult) {
+        setGeneratedImageUrl(aiResult);
+      } else {
+        // Fallback to enhanced template generation
+        toast.info("Using advanced template generation...");
+        const templateResult = await AIIconGenerator.generateWithTemplate({
+          description,
+          backgroundColor,
+          foregroundColor,
+          size
+        });
+        setGeneratedImageUrl(templateResult);
+        toast.success("Professional icon generated!");
       }
+      
     } catch (error) {
       console.error('Error generating icon:', error);
       toast.error("Failed to generate icon");
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const generateEnhancedIcon = async (): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Create gradient background
+      const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+      gradient.addColorStop(0, backgroundColor);
+      gradient.addColorStop(1, adjustBrightness(backgroundColor, -30));
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 512, 512);
+      
+      // Add shadow effect
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 5;
+      
+      // Generate icon based on description keywords
+      ctx.fillStyle = foregroundColor;
+      const desc = description.toLowerCase();
+      
+      if (desc.includes('circle') || desc.includes('round')) {
+        drawCircleIcon(ctx);
+      } else if (desc.includes('star')) {
+        drawStar(ctx, 256, 256, 5, 180, 90);
+      } else if (desc.includes('heart')) {
+        drawHeart(ctx, 256, 256, 180);
+      } else if (desc.includes('arrow') || desc.includes('play')) {
+        drawArrow(ctx);
+      } else if (desc.includes('gear') || desc.includes('settings') || desc.includes('cog')) {
+        drawGear(ctx);
+      } else if (desc.includes('house') || desc.includes('home')) {
+        drawHouse(ctx);
+      } else if (desc.includes('envelope') || desc.includes('mail') || desc.includes('message')) {
+        drawEnvelope(ctx);
+      } else if (desc.includes('music') || desc.includes('note')) {
+        drawMusicNote(ctx);
+      } else if (desc.includes('camera') || desc.includes('photo')) {
+        drawCamera(ctx);
+      } else if (desc.includes('lock') || desc.includes('security')) {
+        drawLock(ctx);
+      } else {
+        // Default modern geometric design
+        drawModernGeometric(ctx);
+      }
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      resolve(dataUrl);
+    });
+  };
+
+  const adjustBrightness = (hex: string, amount: number) => {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const amt = Math.round(2.55 * amount);
+    const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+    const G = Math.max(0, Math.min(255, (num >> 8 & 0x00FF) + amt));
+    const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+
+  const drawCircleIcon = (ctx: CanvasRenderingContext2D) => {
+    ctx.beginPath();
+    ctx.arc(256, 256, 180, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Add inner ring
+    ctx.strokeStyle = backgroundColor;
+    ctx.lineWidth = 30;
+    ctx.beginPath();
+    ctx.arc(256, 256, 120, 0, 2 * Math.PI);
+    ctx.stroke();
+  };
+
+  const drawArrow = (ctx: CanvasRenderingContext2D) => {
+    ctx.beginPath();
+    ctx.moveTo(150, 256);
+    ctx.lineTo(320, 180);
+    ctx.lineTo(320, 220);
+    ctx.lineTo(380, 220);
+    ctx.lineTo(380, 292);
+    ctx.lineTo(320, 292);
+    ctx.lineTo(320, 332);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const drawGear = (ctx: CanvasRenderingContext2D) => {
+    const centerX = 256, centerY = 256;
+    const innerRadius = 80;
+    const outerRadius = 160;
+    const teeth = 8;
+    
+    ctx.beginPath();
+    for (let i = 0; i < teeth * 2; i++) {
+      const angle = (i * Math.PI) / teeth;
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius;
+      
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    // Inner hole
+    ctx.fillStyle = backgroundColor;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 50, 0, 2 * Math.PI);
+    ctx.fill();
+  };
+
+  const drawHouse = (ctx: CanvasRenderingContext2D) => {
+    // House base
+    ctx.fillRect(150, 250, 212, 180);
+    
+    // Roof
+    ctx.beginPath();
+    ctx.moveTo(256, 150);
+    ctx.lineTo(120, 270);
+    ctx.lineTo(392, 270);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Door
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(220, 350, 72, 80);
+    
+    // Window
+    ctx.fillRect(180, 280, 40, 40);
+    ctx.fillRect(292, 280, 40, 40);
+  };
+
+  const drawEnvelope = (ctx: CanvasRenderingContext2D) => {
+    // Envelope base
+    ctx.fillRect(120, 200, 272, 200);
+    
+    // Envelope flap
+    ctx.beginPath();
+    ctx.moveTo(120, 200);
+    ctx.lineTo(256, 300);
+    ctx.lineTo(392, 200);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Inner detail
+    ctx.strokeStyle = backgroundColor;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(140, 220);
+    ctx.lineTo(256, 320);
+    ctx.lineTo(372, 220);
+    ctx.stroke();
+  };
+
+  const drawMusicNote = (ctx: CanvasRenderingContext2D) => {
+    // Note head
+    ctx.beginPath();
+    ctx.ellipse(200, 350, 30, 20, -Math.PI / 6, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Note stem
+    ctx.fillRect(225, 180, 8, 170);
+    
+    // Flag
+    ctx.beginPath();
+    ctx.moveTo(233, 180);
+    ctx.quadraticCurveTo(280, 160, 300, 200);
+    ctx.quadraticCurveTo(280, 180, 233, 200);
+    ctx.fill();
+  };
+
+  const drawCamera = (ctx: CanvasRenderingContext2D) => {
+    // Camera body
+    ctx.fillRect(150, 200, 212, 150);
+    
+    // Lens
+    ctx.beginPath();
+    ctx.arc(256, 275, 60, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Inner lens
+    ctx.fillStyle = backgroundColor;
+    ctx.beginPath();
+    ctx.arc(256, 275, 35, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Flash
+    ctx.fillStyle = foregroundColor;
+    ctx.fillRect(320, 210, 30, 20);
+  };
+
+  const drawLock = (ctx: CanvasRenderingContext2D) => {
+    // Lock body
+    ctx.fillRect(180, 280, 152, 120);
+    
+    // Lock shackle
+    ctx.strokeStyle = foregroundColor;
+    ctx.lineWidth = 16;
+    ctx.beginPath();
+    ctx.arc(256, 240, 50, Math.PI, 0, false);
+    ctx.stroke();
+    
+    // Keyhole
+    ctx.fillStyle = backgroundColor;
+    ctx.beginPath();
+    ctx.arc(256, 330, 15, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillRect(251, 330, 10, 25);
+  };
+
+  const drawModernGeometric = (ctx: CanvasRenderingContext2D) => {
+    // Modern layered design with rounded corners
+    const cornerRadius = 20;
+    
+    // Layer 1
+    drawRoundedRect(ctx, 150, 150, 212, 212, cornerRadius);
+    ctx.fill();
+    
+    // Layer 2
+    ctx.fillStyle = adjustBrightness(foregroundColor, 40);
+    drawRoundedRect(ctx, 180, 180, 152, 152, cornerRadius);
+    ctx.fill();
+    
+    // Layer 3
+    ctx.fillStyle = backgroundColor;
+    drawRoundedRect(ctx, 210, 210, 92, 92, cornerRadius);
+    ctx.fill();
+  };
+
+  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
   };
 
   const drawStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) => {
@@ -184,7 +428,24 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description">Description</Label>
+              <Collapsible open={showSuggestions} onOpenChange={setShowSuggestions}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-auto p-1">
+                    <HelpCircle className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <PromptSuggestions 
+                    onSelectPrompt={(prompt) => {
+                      setDescription(prompt);
+                      setShowSuggestions(false);
+                    }} 
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
             <Textarea
               id="description"
               placeholder="Describe your icon... e.g., 'A modern app icon with a blue gradient background and a white star in the center'"
