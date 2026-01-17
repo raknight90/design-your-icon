@@ -64,7 +64,7 @@ export const IconPreview = forwardRef<HTMLCanvasElement, IconPreviewProps>(
               className
             )}
             style={{ 
-              background: `repeating-conic-gradient(#f8f9fa 0% 25%, #e9ecef 0% 50%) 50% / 20px 20px`
+              background: `repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--muted-foreground) / 0.2) 0% 50%) 50% / 20px 20px`
             }}
           />
           
