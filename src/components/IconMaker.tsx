@@ -52,7 +52,6 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
     try {
       toast.info("Generating icon with AI...");
       
-      // Try AI generation first
       const aiResult = await AIIconGenerator.generateIcon({
         description,
         backgroundColor,
@@ -60,24 +59,13 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
         size
       });
       
-      if (aiResult) {
-        setGeneratedImageUrl(aiResult);
-      } else {
-        // Fallback to enhanced template generation
-        toast.info("Using advanced template generation...");
-        const templateResult = await AIIconGenerator.generateWithTemplate({
-          description,
-          backgroundColor,
-          foregroundColor,
-          size
-        });
-        setGeneratedImageUrl(templateResult);
-        toast.success("Professional icon generated!");
-      }
+      setGeneratedImageUrl(aiResult);
+      toast.success("AI icon generated!");
       
     } catch (error) {
       console.error('Error generating icon:', error);
-      toast.error("Failed to generate icon");
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate icon";
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }
