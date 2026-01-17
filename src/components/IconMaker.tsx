@@ -380,7 +380,7 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
     onIconCreated?.();
   };
 
-  const downloadIcon = () => {
+  const downloadAsPng = () => {
     if (!generatedImageUrl) {
       toast.error("Please generate an icon first");
       return;
@@ -391,7 +391,110 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
     link.href = generatedImageUrl;
     link.click();
     
-    toast.success("Icon downloaded!");
+    toast.success("PNG downloaded!");
+  };
+
+  const downloadAsIco = async () => {
+    if (!generatedImageUrl) {
+      toast.error("Please generate an icon first");
+      return;
+    }
+
+    try {
+      // Create canvas and draw the image
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, size, size);
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = generatedImageUrl;
+      });
+
+      // Get image data
+      const imageData = ctx.getImageData(0, 0, size, size);
+      const pixels = imageData.data;
+
+      // Create ICO file structure
+      const icoHeader = new ArrayBuffer(6);
+      const icoHeaderView = new DataView(icoHeader);
+      icoHeaderView.setUint16(0, 0, true); // Reserved
+      icoHeaderView.setUint16(2, 1, true); // ICO type
+      icoHeaderView.setUint16(4, 1, true); // Number of images
+
+      // Create icon directory entry
+      const iconDir = new ArrayBuffer(16);
+      const iconDirView = new DataView(iconDir);
+      iconDirView.setUint8(0, size > 255 ? 0 : size); // Width
+      iconDirView.setUint8(1, size > 255 ? 0 : size); // Height
+      iconDirView.setUint8(2, 0); // Color palette
+      iconDirView.setUint8(3, 0); // Reserved
+      iconDirView.setUint16(4, 1, true); // Color planes
+      iconDirView.setUint16(6, 32, true); // Bits per pixel
+
+      // Create BMP header for ICO (BITMAPINFOHEADER)
+      const bmpHeaderSize = 40;
+      const pixelDataSize = size * size * 4;
+      const maskSize = Math.ceil(size / 8) * size;
+      const imageSize = bmpHeaderSize + pixelDataSize + maskSize;
+
+      iconDirView.setUint32(8, imageSize, true); // Image size
+      iconDirView.setUint32(12, 6 + 16, true); // Offset to image data
+
+      const bmpHeader = new ArrayBuffer(bmpHeaderSize);
+      const bmpHeaderView = new DataView(bmpHeader);
+      bmpHeaderView.setUint32(0, bmpHeaderSize, true); // Header size
+      bmpHeaderView.setInt32(4, size, true); // Width
+      bmpHeaderView.setInt32(8, size * 2, true); // Height (doubled for ICO)
+      bmpHeaderView.setUint16(12, 1, true); // Color planes
+      bmpHeaderView.setUint16(14, 32, true); // Bits per pixel
+      bmpHeaderView.setUint32(16, 0, true); // Compression
+      bmpHeaderView.setUint32(20, pixelDataSize + maskSize, true); // Image size
+      bmpHeaderView.setInt32(24, 0, true); // X pixels per meter
+      bmpHeaderView.setInt32(28, 0, true); // Y pixels per meter
+      bmpHeaderView.setUint32(32, 0, true); // Colors used
+      bmpHeaderView.setUint32(36, 0, true); // Important colors
+
+      // Create pixel data (BGRA, bottom-up)
+      const pixelData = new Uint8Array(pixelDataSize);
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const srcIdx = ((size - 1 - y) * size + x) * 4;
+          const dstIdx = (y * size + x) * 4;
+          pixelData[dstIdx] = pixels[srcIdx + 2]; // B
+          pixelData[dstIdx + 1] = pixels[srcIdx + 1]; // G
+          pixelData[dstIdx + 2] = pixels[srcIdx]; // R
+          pixelData[dstIdx + 3] = pixels[srcIdx + 3]; // A
+        }
+      }
+
+      // Create AND mask (all zeros for full opacity)
+      const andMask = new Uint8Array(maskSize);
+
+      // Combine all parts
+      const icoBlob = new Blob([icoHeader, iconDir, bmpHeader, pixelData, andMask], {
+        type: 'image/x-icon'
+      });
+
+      const link = document.createElement('a');
+      link.download = `${iconName || 'icon'}_${size}x${size}.ico`;
+      link.href = URL.createObjectURL(icoBlob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      
+      toast.success("ICO downloaded!");
+    } catch (error) {
+      console.error('Error creating ICO:', error);
+      toast.error("Failed to create ICO file");
+    }
   };
 
   return (
@@ -476,7 +579,7 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
             )}
           </Button>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Button 
               variant="outline" 
               onClick={saveIcon}
@@ -487,11 +590,19 @@ export const IconMaker = ({ initialIcon, onIconCreated }: IconMakerProps) => {
             </Button>
             <Button 
               variant="outline" 
-              onClick={downloadIcon}
+              onClick={downloadAsPng}
               disabled={!generatedImageUrl}
             >
               <Download className="mr-2 h-4 w-4" />
-              Download
+              PNG
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={downloadAsIco}
+              disabled={!generatedImageUrl}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              ICO
             </Button>
           </div>
         </CardContent>
