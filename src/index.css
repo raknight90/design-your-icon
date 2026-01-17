@@ -124,6 +124,10 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    @apply dark;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
